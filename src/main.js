@@ -87,7 +87,7 @@ function animate() {
 animate();
 
 // Establish WebSocket connection
-const socket = new WebSocket('ws://luckbox-backend-40fc66018788.herokuapp.com');
+const socket = new WebSocket('wss://luckbox-backend-40fc66018788.herokuapp.com');
 
 socket.onopen = (event) => {
     console.log('Connected to the server');
