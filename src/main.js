@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { WS_URL } from '../config';
 
 
 const scene = new THREE.Scene();
@@ -87,7 +88,7 @@ function animate() {
 animate();
 
 // Establish WebSocket connection
-const socket = new WebSocket('wss://luckbox-backend-40fc66018788.herokuapp.com');
+const socket = new WebSocket(WS_URL);
 
 socket.onopen = (event) => {
     console.log('Connected to the server');
