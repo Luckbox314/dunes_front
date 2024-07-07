@@ -217,13 +217,14 @@ function animate() {
                 target.x - local_player.position.x,
                 target.y - local_player.position.y
             );
-            if (direction.length() < speed) {
+            if (direction.length() * speed < speed) {
                 local_player.position.x = target.x;
                 local_player.position.y = target.y;
+            } else {
+                direction.normalize();  
+                local_player.position.x += direction.x * speed;
+                local_player.position.y += direction.y * speed;
             }
-            direction.normalize();  
-            local_player.position.x += direction.x * speed;
-            local_player.position.y += direction.y * speed;
 
             players[playerId].x = local_player.position.x;
             players[playerId].y = local_player.position.y;
