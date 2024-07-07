@@ -29,7 +29,7 @@ const material = new THREE.ShaderMaterial({
         displacementMap: { value: displacementMap },
         normalMap: { value: normalMap },
         color: { value: new THREE.Vector3(1, 1, 1) },
-        lightDirection: { value: new THREE.Vector3(1, 0.3, 0.3) },
+        lightDirection: { value: new THREE.Vector3(0.5, -0.5, 0.4) },
         skyColor: { value: new THREE.Vector3(134/255, 89/255, 66/255) }
     },
     vertexShader: `
@@ -37,24 +37,29 @@ const material = new THREE.ShaderMaterial({
         uniform sampler2D displacementMap;
         uniform sampler2D normalMap;
         varying vec2 vUv;
+        varying vec3 vNormal;
 
         void main() {
             vUv = texture2D(normalMap, uv).rg;
-            vec3 newPosition = position + normal * texture2D(displacementMap, uv).r * 60.0;
+            vNormal = texture2D(normalMap, uv).rgb;
+            vec3 newPosition = position + normal * texture2D(displacementMap, uv).r * 120.0;
             gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
         }
     `,
     fragmentShader: `
         varying vec2 vUv;
+        varying vec3 vNormal;
         uniform vec3 color;
         uniform vec3 lightDirection;
         uniform vec3 skyColor;
 
         void main() {
-            vec3 normal = normalize(vec3(vUv - 0.5, 1.0));
-            float light = dot(normal, lightDirection);
-            vec3 color = mix(vec3(0.0, 0.0, 0.0), color, light + 0.5);
-            color = mix(color, skyColor, 1.0 - light);
+            // vec3 normal = normalize(vec3(vUv - 0.5, 1.0));
+            vec3 normal = normalize(vNormal);
+            vec3 nDirection = normalize(lightDirection);
+            float light = dot(normal, nDirection);
+            vec3 color = mix(vec3(0.0, 0.0, 0.0), color, light);
+            // color = mix(color, skyColor, 1.0 - light);
             gl_FragColor = vec4(color, 1.0);
         }
     `,
@@ -65,7 +70,7 @@ const material = new THREE.ShaderMaterial({
 
 material.uniforms.color.value = new THREE.Vector3(207/255, 161/255, 110/255);
 
-material.uniforms.lightDirection.value = new THREE.Vector3(1, 0.5, 0.5);
+// material.uniforms.lightDirection.value = new THREE.Vector3(1, 0.5, 0.5);
 // material.uniforms.lightDirection.value = new THREE.Vector3(1, 1, 1);
 
 // Shader material for the player
@@ -88,7 +93,7 @@ const playerMaterial = new THREE.ShaderMaterial({
             vec4 referencePosition = instanceMatrix * vec4( 0.0, 0.0, 0.0, 1.0);
             referencePosition.x += 500.0;
             referencePosition.y += 500.0;
-            float displacement = texture2D(displacementMap, referencePosition.xy / 1000.0).r * 60.0;
+            float displacement = texture2D(displacementMap, referencePosition.xy / 1000.0).r * 120.0;
             vec3 newPosition = position;
             newPosition.z += displacement;
             gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(newPosition, 1.0);
@@ -132,12 +137,16 @@ scene.add(playerMesh);
 
 // Function to add a player
 function addPlayer(playerId, position) {
-    players[playerId] = position;
+    console.log('Adding player:', playerId, position);
+    players_server_positions[playerId] = {x: position.x, y: position.y};
+    players[playerId] = {x: position.x, y: position.y};
     updatePlayerAttributes();
 }
 
 // Function to remove a player
 function removePlayer(playerId) {
+    console.log('Removing player:', playerId);
+    delete players_server_positions[playerId];
     delete players[playerId];
     updatePlayerAttributes();
 }
@@ -159,8 +168,6 @@ function updatePlayerAttributes() {
     playerMesh.instanceMatrix.needsUpdate = true;
 }
 
-updatePlayerAttributes()
-
 // Variables to store mouse position and target world position
 let mouse = new THREE.Vector2();
 let target = new THREE.Vector3();
@@ -181,27 +188,45 @@ function onMouseMove(event) {
     if (intersects.length > 0) {
         target.copy(intersects[0].point);
     }
-
-    local_player.position.x = target.x;
-    local_player.position.y = target.y;
 }
 
 // Animation loop
 function animate() {
     requestAnimationFrame(animate);
+    // console.log(players_server_positions)
 
 
     // Update the displacement shader time
     material.uniforms.time.value += 0.01;
+    // material.uniforms.lightDirection.value = new THREE.Vector3(Math.sin(material.uniforms.time.value), Math.cos(material.uniforms.time.value), 0.5);
+    // console.log(material.uniforms.lightDirection.value);    
     playerMaterial.uniforms.time.value += 0.01;
 
 
 
     // Update other players positions
     Object.keys(players_server_positions).forEach(playerId => {
-        if (players[playerId]) {
-            players[playerId].position.x = players_server_positions[playerId].x;
-            players[playerId].position.y = players_server_positions[playerId].y;
+        if (local_player.id !== playerId && players[playerId] && players_server_positions[playerId]) {
+            players[playerId].x = players_server_positions[playerId].x;
+            players[playerId].y = players_server_positions[playerId].y;
+        }
+
+        if (local_player.id === playerId) {
+            const speed = 2;
+            let direction = new THREE.Vector2(
+                target.x - local_player.position.x,
+                target.y - local_player.position.y
+            );
+            if (direction.length() < speed) {
+                local_player.position.x = target.x;
+                local_player.position.y = target.y;
+            }
+            direction.normalize();  
+            local_player.position.x += direction.x * speed;
+            local_player.position.y += direction.y * speed;
+
+            players[playerId].x = local_player.position.x;
+            players[playerId].y = local_player.position.y;
         }
     });
 
@@ -238,6 +263,7 @@ socket.onopen = (event) => {
 socket.onmessage = (event) => {
     const data = JSON.parse(event.data);
     if (data.type === 'positions') {
+        // console.log('Positions:', data.positions)
         // delete players that are not in the new positions list
         Object.keys(players).forEach(playerId => {
             if (!data.positions[playerId]) {
@@ -247,9 +273,9 @@ socket.onmessage = (event) => {
             }
         });
         Object.keys(data.positions).forEach(playerId => {
-            if (playerId === local_player.id) {
-                return;
-            }
+            // if (playerId === local_player.id) {
+            //     return;
+            // }
             if (players_server_positions[playerId]) {
                 players_server_positions[playerId].x = data.positions[playerId].x;
                 players_server_positions[playerId].y = data.positions[playerId].y;
