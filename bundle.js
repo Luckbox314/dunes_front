@@ -16,7 +16,7 @@
   \*******************/
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
-eval("__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpack_require__.d(__webpack_exports__, {\n/* harmony export */   WS_URL: () => (/* binding */ WS_URL)\n/* harmony export */ });\nvar WS_URL = 'ws://localhost:3000';\n\n//# sourceURL=webpack://dunes_front/./config.js?");
+eval("__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpack_require__.d(__webpack_exports__, {\n/* harmony export */   WS_URL: () => (/* binding */ WS_URL)\n/* harmony export */ });\nvar WS_URL = 'wss://luckbox-backend-40fc66018788.herokuapp.com';\n\n//# sourceURL=webpack://dunes_front/./config.js?");
 
 /***/ }),
 
