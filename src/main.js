@@ -110,6 +110,7 @@ const playerMaterial = new THREE.ShaderMaterial({
         void main() {
             // sample the texture
             vec4 color = texture(sprite, vUv);
+            if (color.a < 0.5) discard;
             gl_FragColor = vec4(color);
         }
     `,
@@ -131,7 +132,6 @@ var local_player = {id: null, position: {x: 0, y: 0}};
 var local_player_position_cache = {x: 0, y: 0};
 
 const playerGeometry = new THREE.PlaneGeometry(40, 40, 1, 1);
-// const playerGeometry = new THREE.SphereGeometry(20, 32, 32);
 playerGeometry.rotateZ(Math.PI / 2);
 playerGeometry.rotateY(Math.PI / 4);
 const instancedGeometry = new THREE.InstancedBufferGeometry().copy(playerGeometry);
