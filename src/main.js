@@ -197,17 +197,20 @@ function onMouseMove(event) {
     }
 }
 
+let previousTime = performance.now();
+
 // Animation loop
 function animate() {
     requestAnimationFrame(animate);
-    // console.log(players_server_positions)
+
+    const currentTime = performance.now();
+    const deltaTime = (currentTime - previousTime) / 1000; // convert to seconds
+    previousTime = currentTime;
 
 
     // Update the displacement shader time
-    material.uniforms.time.value += 0.01;
-    // material.uniforms.lightDirection.value = new THREE.Vector3(Math.sin(material.uniforms.time.value), Math.cos(material.uniforms.time.value), 0.5);
-    // console.log(material.uniforms.lightDirection.value);    
-    playerMaterial.uniforms.time.value += 0.01;
+    material.uniforms.time.value += deltaTime; 
+    playerMaterial.uniforms.time.value += deltaTime;
 
 
 
@@ -219,18 +222,18 @@ function animate() {
         }
 
         if (local_player.id === playerId) {
-            const speed = 2;
+            const speed = 120;
             let direction = new THREE.Vector2(
                 target.x - local_player.position.x,
                 target.y - local_player.position.y
             );
-            if (direction.length() * speed < speed) {
+            if (direction.length() * speed * deltaTime < speed * deltaTime) {
                 local_player.position.x = target.x;
                 local_player.position.y = target.y;
             } else {
                 direction.normalize();  
-                local_player.position.x += direction.x * speed;
-                local_player.position.y += direction.y * speed;
+                local_player.position.x += direction.x * speed * deltaTime;
+                local_player.position.y += direction.y * speed * deltaTime;
             }
 
             players[playerId].x = local_player.position.x;
