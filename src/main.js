@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { WS_URL } from '../config';
 import displacementMapImage from './dunes_height.png';
 import normalMapImage from './dunes_normals.png';
-import { color } from 'three/examples/jsm/nodes/Nodes.js';
+import sprite from './center_front.png';
+import { color, texture } from 'three/examples/jsm/nodes/Nodes.js';
 
 
 const scene = new THREE.Scene();
@@ -21,6 +22,14 @@ camera.rotation.z = Math.PI / 2;
 // Load displacement and normal map textures
 const displacementMap = new THREE.TextureLoader().load(displacementMapImage);
 const normalMap = new THREE.TextureLoader().load(normalMapImage);
+const spriteMap = new THREE.TextureLoader().load(sprite, (texture) => {
+    // Disable mipmaps
+    texture.generateMipmaps = false;
+
+    // Set filters to NearestFilter for sharp pixels
+    texture.minFilter = THREE.NearestFilter;
+    texture.magFilter = THREE.NearestFilter;
+});
 
 // Shader material for the dunes
 const material = new THREE.ShaderMaterial({
@@ -28,7 +37,7 @@ const material = new THREE.ShaderMaterial({
         time: { value: 1.0 },
         displacementMap: { value: displacementMap },
         normalMap: { value: normalMap },
-        color: { value: new THREE.Vector3(1, 1, 1) },
+        color: { value: new THREE.Vector3(207/255, 161/255, 110/255) },
         lightDirection: { value: new THREE.Vector3(0.5, -0.5, 0.4) },
         skyColor: { value: new THREE.Vector3(134/255, 89/255, 66/255) }
     },
@@ -66,17 +75,11 @@ const material = new THREE.ShaderMaterial({
     wireframe: false
 });
 
-// turn rgb(207, 161, 110) into a vector3
-
-material.uniforms.color.value = new THREE.Vector3(207/255, 161/255, 110/255);
-
-// material.uniforms.lightDirection.value = new THREE.Vector3(1, 0.5, 0.5);
-// material.uniforms.lightDirection.value = new THREE.Vector3(1, 1, 1);
-
 // Shader material for the player
 const playerMaterial = new THREE.ShaderMaterial({
     uniforms: {
         time: { value: 1.0 },
+        sprite: { value: spriteMap },
         displacementMap: { value: displacementMap },
         color: { value: new THREE.Vector3(1.0, 0, 0) },
         lightDirection: { value: new THREE.Vector3(1, -1, 0.5) },
@@ -89,7 +92,7 @@ const playerMaterial = new THREE.ShaderMaterial({
 
         void main() {
             vUv = uv;
-            vNormal = normal;
+            // vNormal = normal;
             vec4 referencePosition = instanceMatrix * vec4( 0.0, 0.0, 0.0, 1.0);
             referencePosition.x += 500.0;
             referencePosition.y += 500.0;
@@ -101,18 +104,17 @@ const playerMaterial = new THREE.ShaderMaterial({
     `,
     fragmentShader: `
         varying vec2 vUv;
-        varying vec3 vNormal;
-        uniform vec3 color;
-        uniform vec3 lightDirection;
+        uniform sampler2D sprite;
 
 
         void main() {
-            vec3 normal = normalize(vNormal);
-            float light = dot(normal, lightDirection);
-            vec3 color = mix(vec3(0.0, 0.0, 0.0), color, light + 0.5);
-            gl_FragColor = vec4(color, 1.0);
+            // sample the texture
+            vec4 color = texture(sprite, vUv);
+            gl_FragColor = vec4(color);
         }
     `,
+    transparent: true,
+    blending: THREE.NormalBlending,
     wireframe: false
 });
 
@@ -128,7 +130,10 @@ const players = {};
 var local_player = {id: null, position: {x: 0, y: 0}};
 var local_player_position_cache = {x: 0, y: 0};
 
-const playerGeometry = new THREE.SphereGeometry(20, 10, 10);
+const playerGeometry = new THREE.PlaneGeometry(40, 40, 1, 1);
+// const playerGeometry = new THREE.SphereGeometry(20, 32, 32);
+playerGeometry.rotateZ(Math.PI / 2);
+playerGeometry.rotateY(Math.PI / 4);
 const instancedGeometry = new THREE.InstancedBufferGeometry().copy(playerGeometry);
 
 const playerMesh = new THREE.InstancedMesh(instancedGeometry, playerMaterial, 300);
@@ -158,6 +163,8 @@ function updatePlayerAttributes() {
             playerMesh.count++;
         }
         const matrix = new THREE.Matrix4();
+        // rotate the player 45 degrees up then translate it to the player position
+
         matrix.makeTranslation(
             players[playerId].x,
             players[playerId].y,
@@ -232,6 +239,11 @@ function animate() {
     });
 
     updatePlayerAttributes();
+
+    // // orbit camera around the scene
+    // camera.position.x = 1000 * Math.cos(material.uniforms.time.value);
+    // camera.position.y = 1000 * Math.sin(material.uniforms.time.value);
+    // camera.lookAt(0, 0, 0);
     
 
     renderer.render(scene, camera);
